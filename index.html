@@ -2,32 +2,75 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>서명 전송하기</title>
     <style>
-        /* 전체 화면을 흰색 배경으로 설정 */
-        body {
+        /* 모바일 전체 스크롤 및 바운스 현상 원천 차단 */
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #ffffff;
-            font-family: 'Malgun Gothic', sans-serif;
+            background-color: #f9f9fc; /* 배경을 편안한 연회색으로 설정 */
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            overflow: hidden;
+        }
+
+        /* 전체 입력 폼 컨테이너 */
+        .main-form {
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* 이름 입력란 스타일 */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #333333;
+        }
+
+        .input-name {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            border: 1px solid #cccccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            outline: none;
+            background-color: #ffffff;
+        }
+
+        .input-name:focus {
+            border-color: #000000;
         }
 
         /* 서명 영역 컨테이너 */
         .signature-container {
             position: relative;
-            width: 90%;
-            max-width: 400px;
+            width: 100%;
             height: 250px;
             border: 2px dashed #cccccc;
-            border-radius: 10px;
-            background-color: transparent;
+            border-radius: 12px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+            box-sizing: border-box;
         }
 
         /* 배경에 투명하게 보일 "서명" 글씨 */
@@ -37,9 +80,11 @@
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 2rem;
-            color: rgba(0, 0, 0, 0.15); /* 연한 회색으로 투명한 느낌 제공 */
-            pointer-events: none; /* 글씨가 터치 이벤트를 방해하지 않도록 설정 */
+            color: rgba(0, 0, 0, 0.12);
+            pointer-events: none;
             user-select: none;
+            font-weight: bold;
+            z-index: 0;
         }
 
         /* 실제 서명이 그려지는 캔버스 */
@@ -49,54 +94,70 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1;
+            z-index: 2;
+            background-color: transparent;
         }
 
         /* 전송 및 지우기 버튼 스타일 */
         .btn-group {
-            margin-top: 20px;
-            width: 90%;
-            max-width: 400px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            width: 100%;
         }
 
         button {
             flex: 1;
-            padding: 15px;
+            padding: 16px;
             font-size: 1rem;
             font-weight: bold;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
         }
 
         button:disabled {
-            background-color: #aaaaaa !important;
+            background-color: #cccccc !important;
+            color: #ffffff !important;
             cursor: not-allowed;
+            opacity: 0.8;
         }
 
         .btn-clear {
-            background-color: #f0f0f0;
-            color: #333;
+            background-color: #e5e5ea;
+            color: #333333;
         }
 
         .btn-submit {
             background-color: #000000;
             color: #ffffff;
         }
+
+        button:active {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
 
-    <div class="signature-container">
-        <div class="bg-text" id="bg-text-element">서명</div>
-        <canvas id="signature-canvas"></canvas>
-    </div>
+    <div class="main-form">
+        <div class="input-group">
+            <label for="signer-name">서명자 이름</label>
+            <input type="text" id="signer-name" class="input-name" placeholder="이름을 입력해 주세요." maxlength="10">
+        </div>
 
-    <div class="btn-group">
-        <button class="btn-clear" onclick="clearCanvas()">지우기</button>
-        <button class="btn-submit" id="submit-btn" onclick="submitSignature()">전송</button>
+        <div class="input-group" style="gap: 6px;">
+            <label>서명 영역</label>
+            <div class="signature-container">
+                <div class="bg-text" id="bg-text-element">서명란</div>
+                <canvas id="signature-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-clear" onclick="clearCanvas()">지우기</button>
+            <button class="btn-submit" id="submit-btn" onclick="submitSignature()">전송</button>
+        </div>
     </div>
 
     <script>
@@ -104,100 +165,127 @@
         const ctx = canvas.getContext('2d');
         const bgText = document.getElementById('bg-text-element');
         const submitBtn = document.getElementById('submit-btn');
+        const nameInput = document.getElementById('signer-name');
+        
         let isDrawing = false;
-        let hasSigned = false; // 서명 여부 체크
+        let hasSigned = false;
 
-        // 캔버스 크기를 고해상도로 설정 (모바일 대응)
+        // 캔버스 크기 및 해상도 최적화
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * window.devicePixelRatio;
-            canvas.height = rect.height * window.devicePixelRatio;
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const dpr = window.devicePixelRatio || 1;
             
-            // 선 스타일 설정 (검은색 고정)
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            if (hasSigned) {
+                tempCtx.drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 3.5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+
+            if (hasSigned) {
+                ctx.drawImage(tempCanvas, 0, 0, rect.width, rect.height);
+            }
         }
 
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('DOMContentLoaded', resizeCanvas);
 
-        // 그리기 시작 이벤트 (마우스 및 터치 대응)
+        function getEventPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
         function startDrawing(e) {
             isDrawing = true;
             hasSigned = true;
-            bgText.style.display = 'none'; // 서명을 시작하면 "서명" 배경 글씨 숨김
-            draw(e);
-        }
-
-        // 그리기 종료
-        function stopDrawing() {
-            isDrawing = false;
+            bgText.style.display = 'none';
+            
+            const pos = getEventPos(e);
             ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
         }
 
-        // 실제 그리는 함수
         function draw(e) {
             if (!isDrawing) return;
-            e.preventDefault(); // 스크롤 방지
+            if (e.cancelable) e.preventDefault();
 
-            const rect = canvas.getBoundingClientRect();
-            // 터치 이벤트와 마우스 이벤트 좌표 처리
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-
-            ctx.lineTo(x, y);
+            const pos = getEventPos(e);
+            ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
         }
 
-        // 이벤트 리스너 등록
+        function stopDrawing() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            ctx.closePath();
+        }
+
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
+        window.addEventListener('mouseup', stopDrawing);
 
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing, { passive: false });
 
-        // 화면 지우기 기능
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            bgText.style.display = 'block'; // 배경 글씨 다시 표시
+            bgText.style.display = 'block';
             hasSigned = false;
         }
 
-        // 이메일 전송 기능
+        // 이메일 전송 시스템
         function submitSignature() {
+            const signerName = nameInput.value.trim();
+
+            // 1. 이름 입력 검증
+            if (!signerName) {
+                alert("서명하시는 분의 이름을 입력해 주세요.");
+                nameInput.focus();
+                return;
+            }
+
+            // 2. 서명 여부 검증
             if (!hasSigned || canvasIsEmpty()) {
                 alert("서명란에 서명을 해주세요.");
                 return;
             }
 
-            // 버튼 중복 클릭 방지
             submitBtn.disabled = true;
             submitBtn.innerText = "전송 중...";
 
-            // 캔버스 내용을 투명 배경의 PNG 이미지 데이터(Base64)로 변환
+            // [핵심 변경] 흰색 배경을 섞지 않고, 그려진 검은 선만 그대로 투명 PNG(image/png)로 추출
             const dataURL = canvas.toDataURL('image/png');
             
-            // 외부 이메일 라우팅 서빙 레이어 API 활용 (Web3Forms 주소로 전송)
             const formData = new FormData();
-            formData.append("access_key", "ea9d2258-ce70-4e72-9628-97b4dba9df1c"); // 이메일 포워딩용 가상 키
-            formData.append("subject", "[알림] 웹사이트에서 새로운 서명이 제출되었습니다.");
-            formData.append("from_name", "모바일 서명 시스템");
-            formData.append("to_email", "gxy418@g-tem.net"); // 지정된 수신 이메일
-            formData.append("message", "상대방이 전송한 서명 이미지 데이터입니다. 아래 링크 혹은 본문 이미지를 확인하세요.");
+            // ⭐ 중요: 이 부분에 이메일로 발급받으신 영재 님만의 Access Key를 복사해서 붙여넣으세요!
+            formData.append("access_key", "ea9d2258-ce70-4e72-9628-97b4dba9df1c");
             
-            // Base64 이미지를 텍스트 데이터 형식으로 첨부하여 이메일 본문 안에 포함
-            formData.append("서명 이미지 첨부(DataURL)", dataURL);
+            // 이메일 제목에 이름을 표시하여 누구의 서명인지 바로 알 수 있도록 처리
+            formData.append("subject", `[서명 완료] ${signerName} 님의 서명이 도착했습니다.`);
+            formData.append("from_name", "전자 서명 시스템");
+            formData.append("to_email", "gxy418@g-tem.net");
+            
+            // 이메일 본문 서식
+            formData.append("message", `
+                <h3>제출자 정보: ${signerName} 님</h3>
+                <p>아래는 제출된 배경 투명(누끼) 서명 이미지입니다. 마우스 우클릭이나 꾹 눌러서 다른 이름으로 저장(PNG)이 가능합니다.</p>
+                <div style="margin: 20px 0; border: 1px dashed #999; display: inline-block; padding: 10px; background-color: #f0f0f0;">
+                    <img src="${dataURL}" alt="서명 이미지" style="max-width: 100%; height: auto;" />
+                </div>
+            `);
 
             fetch('https://api.web3forms.com/submit', {
                 method: 'POST',
@@ -206,15 +294,16 @@
             .then(response => response.json())
             .then(data => {
                 if(data.success) {
-                    alert("서명이 수신 이메일(gxy418@g-tem.net)로 성공적으로 전송되었습니다!");
-                    clearCanvas();
+                    alert(`${signerName} 님의 서명이 성공적으로 전송되었습니다!`);
+                    nameInput.value = ""; // 이름 칸 초기화
+                    clearCanvas();       // 서명 패드 초기화
                 } else {
-                    alert("전송에 실패했습니다. 다시 시도해 주세요.");
+                    alert("서버 오류로 전송에 실패했습니다. 키 설정을 확인해 주세요.");
                 }
             })
             .catch(error => {
                 console.error("Error:", error);
-                alert("네트워크 통신 오류가 발생했습니다.");
+                alert("네트워크 연결 상태를 확인해 주세요.");
             })
             .finally(() => {
                 submitBtn.disabled = false;
@@ -222,7 +311,6 @@
             });
         }
 
-        // 캔버스가 완전히 비어있는지 체크하는 검증 함수
         function canvasIsEmpty() {
             const buffer = new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
             return !buffer.some(color => color !== 0);
