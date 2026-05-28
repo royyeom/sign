@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>서명 전송하기</title>
     <style>
-        /* 기본 배경 설정 */
         html, body {
             width: 100%;
             height: 100%;
@@ -20,10 +19,9 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden; /* 전체 화면 흔들림 방지 */
+            overflow: hidden;
         }
 
-        /* 전체 입력 폼 컨테이너 */
         .main-form {
             width: 90%;
             max-width: 400px;
@@ -32,7 +30,6 @@
             gap: 16px;
         }
 
-        /* 이름 입력란 스타일 (모바일 터치 허용) */
         .input-group {
             display: flex;
             flex-direction: column;
@@ -54,7 +51,6 @@
             box-sizing: border-box;
             outline: none;
             background-color: #ffffff;
-            /* ⭐ 중요: 모바일에서 이 입력창만큼은 터치와 타이핑을 정상 허용하도록 강제 설정 */
             touch-action: auto !important;
             -webkit-user-select: text !important;
             user-select: text !important;
@@ -64,7 +60,6 @@
             border-color: #000000;
         }
 
-        /* 서명 영역 컨테이너 (여기는 터치 밀림 방지) */
         .signature-container {
             position: relative;
             width: 100%;
@@ -74,11 +69,9 @@
             background-color: #ffffff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
             box-sizing: border-box;
-            /* ⭐ 서명 패드 내부에서만 스크롤 및 팅김 현상 차단 */
             touch-action: none; 
         }
 
-        /* 배경에 투명하게 보일 "서명" 글씨 */
         .bg-text {
             position: absolute;
             top: 50%;
@@ -92,7 +85,6 @@
             z-index: 0;
         }
 
-        /* 실제 서명이 그려지는 캔버스 */
         canvas {
             position: absolute;
             top: 0;
@@ -103,7 +95,6 @@
             background-color: transparent;
         }
 
-        /* 전송 및 지우기 버튼 스타일 */
         .btn-group {
             display: flex;
             gap: 12px;
@@ -176,7 +167,6 @@
         let isDrawing = false;
         let hasSigned = false;
 
-        // 캔버스 크기 및 해상도 최적화
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
@@ -252,6 +242,18 @@
             hasSigned = false;
         }
 
+        // Base64 데이터를 파일 객체(Blob)로 변환하는 내부 함수
+        function dataURLtoBlob(dataURL) {
+            const arr = dataURL.split(','), mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]), n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            let i = n;
+            while(i--) {
+                u8arr[i] = bstr.charCodeAt(i);
+            }
+            return new Blob([u8arr], {type:mime});
+        }
+
         // 이메일 전송 시스템
         function submitSignature() {
             const signerName = nameInput.value.trim();
@@ -270,23 +272,24 @@
             submitBtn.disabled = true;
             submitBtn.innerText = "전송 중...";
 
+            // 1. 투명 PNG 데이터 주소 추출
             const dataURL = canvas.toDataURL('image/png');
+            // 2. 주소 형태의 데이터를 이메일에 첨부할 수 있는 실제 파일(Blob) 데이터로 변환
+            const fileBlob = dataURLtoBlob(dataURL);
             
             const formData = new FormData();
-            // ⭐ 중요: 이 부분에 이메일로 새로 발급받으신 영재 님만의 고유 Access Key를 입력해 주세요!
+            
+            // ⭐ 중요: 이 부분에 이메일로 새로 발급받으신 고유 Access Key를 다시 한 번 입력해 주세요!
             formData.append("access_key", "ea9d2258-ce70-4e72-9628-97b4dba9df1c");
             
+            // 메일 정보 및 텍스트 설정
             formData.append("subject", `[서명 완료] ${signerName} 님의 서명이 도착했습니다.`);
             formData.append("from_name", "전자 서명 시스템");
             formData.append("to_email", "gxy418@g-tem.net");
+            formData.append("message", `제출자 정보: ${signerName} 님\n\n배경이 투명한 누끼 상태의 서명 이미지가 메일 하단에 PNG 파일로 안전하게 첨부되었습니다. 다운로드하여 활용해 주세요.`);
             
-            formData.append("message", `
-                <h3>제출자 정보: ${signerName} 님</h3>
-                <p>아래는 제출된 배경 투명(누끼) 서명 이미지입니다. 마우스 우클릭이나 꾹 눌러서 다른 이름으로 저장(PNG)이 가능합니다.</p>
-                <div style="margin: 20px 0; border: 1px dashed #999; display: inline-block; padding: 10px; background-color: #f0f0f0;">
-                    <img src="${dataURL}" alt="서명 이미지" style="max-width: 100%; height: auto;" />
-                </div>
-            `);
+            // ⭐ 핵심: 변환된 서명 파일을 'attachment'라는 규격으로 메일에 강제 첨부
+            formData.append("attachment", fileBlob, `${signerName}_서명.png`);
 
             fetch('https://api.web3forms.com/submit', {
                 method: 'POST',
@@ -317,5 +320,7 @@
             return !buffer.some(color => color !== 0);
         }
     </script>
+</body>
+</html>
 </body>
 </html>
