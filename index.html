@@ -5,23 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>서명 전송하기</title>
     <style>
-        /* 모바일 전체 스크롤 및 바운스 현상 원천 차단 */
+        /* 기본 배경 설정 */
         html, body {
             width: 100%;
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #f9f9fc; /* 배경을 편안한 연회색으로 설정 */
-            overflow: hidden;
-            touch-action: none;
+            background-color: #f9f9fc;
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            overflow: hidden; /* 전체 화면 흔들림 방지 */
         }
 
         /* 전체 입력 폼 컨테이너 */
@@ -33,7 +32,7 @@
             gap: 16px;
         }
 
-        /* 이름 입력란 스타일 */
+        /* 이름 입력란 스타일 (모바일 터치 허용) */
         .input-group {
             display: flex;
             flex-direction: column;
@@ -55,13 +54,17 @@
             box-sizing: border-box;
             outline: none;
             background-color: #ffffff;
+            /* ⭐ 중요: 모바일에서 이 입력창만큼은 터치와 타이핑을 정상 허용하도록 강제 설정 */
+            touch-action: auto !important;
+            -webkit-user-select: text !important;
+            user-select: text !important;
         }
 
         .input-name:focus {
             border-color: #000000;
         }
 
-        /* 서명 영역 컨테이너 */
+        /* 서명 영역 컨테이너 (여기는 터치 밀림 방지) */
         .signature-container {
             position: relative;
             width: 100%;
@@ -71,6 +74,8 @@
             background-color: #ffffff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
             box-sizing: border-box;
+            /* ⭐ 서명 패드 내부에서만 스크롤 및 팅김 현상 차단 */
+            touch-action: none; 
         }
 
         /* 배경에 투명하게 보일 "서명" 글씨 */
@@ -114,6 +119,7 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background 0.2s, opacity 0.2s;
+            touch-action: manipulation;
         }
 
         button:disabled {
@@ -250,14 +256,12 @@
         function submitSignature() {
             const signerName = nameInput.value.trim();
 
-            // 1. 이름 입력 검증
             if (!signerName) {
                 alert("서명하시는 분의 이름을 입력해 주세요.");
                 nameInput.focus();
                 return;
             }
 
-            // 2. 서명 여부 검증
             if (!hasSigned || canvasIsEmpty()) {
                 alert("서명란에 서명을 해주세요.");
                 return;
@@ -266,19 +270,16 @@
             submitBtn.disabled = true;
             submitBtn.innerText = "전송 중...";
 
-            // [핵심 변경] 흰색 배경을 섞지 않고, 그려진 검은 선만 그대로 투명 PNG(image/png)로 추출
             const dataURL = canvas.toDataURL('image/png');
             
             const formData = new FormData();
-            // ⭐ 중요: 이 부분에 이메일로 발급받으신 영재 님만의 Access Key를 복사해서 붙여넣으세요!
+            // ⭐ 중요: 이 부분에 이메일로 새로 발급받으신 영재 님만의 고유 Access Key를 입력해 주세요!
             formData.append("access_key", "ea9d2258-ce70-4e72-9628-97b4dba9df1c");
             
-            // 이메일 제목에 이름을 표시하여 누구의 서명인지 바로 알 수 있도록 처리
             formData.append("subject", `[서명 완료] ${signerName} 님의 서명이 도착했습니다.`);
             formData.append("from_name", "전자 서명 시스템");
             formData.append("to_email", "gxy418@g-tem.net");
             
-            // 이메일 본문 서식
             formData.append("message", `
                 <h3>제출자 정보: ${signerName} 님</h3>
                 <p>아래는 제출된 배경 투명(누끼) 서명 이미지입니다. 마우스 우클릭이나 꾹 눌러서 다른 이름으로 저장(PNG)이 가능합니다.</p>
@@ -295,8 +296,8 @@
             .then(data => {
                 if(data.success) {
                     alert(`${signerName} 님의 서명이 성공적으로 전송되었습니다!`);
-                    nameInput.value = ""; // 이름 칸 초기화
-                    clearCanvas();       // 서명 패드 초기화
+                    nameInput.value = "";
+                    clearCanvas();
                 } else {
                     alert("서버 오류로 전송에 실패했습니다. 키 설정을 확인해 주세요.");
                 }
